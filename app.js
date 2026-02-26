@@ -1,8 +1,7 @@
-/* app.js (ES module)
-   - Vanilla JS dashboard
-   - Event delegation (no per-row global listeners)
+/* app.js (ES module) — STABLE OVERLAY VERSION
    - No preselected metric on load
-   - Dropdown renders all metrics when input is empty (or equals selected name)
+   - Dropdown is absolute (no fixed) + cleaned inline styles
+   - Event delegation only (fast)
 */
 
 import { SECTIONS } from "./data/metrics.js";
@@ -78,9 +77,8 @@ function renderApp() {
   const stack = $("#stack");
   stack.innerHTML = SECTIONS.map(renderSection).join("");
 
-  // create 1 empty row per section
   for (const s of SECTIONS) {
-    addRow(s.id);
+    addRow(s.id); // 1 empty row per level
     updateSectionPill(s.id);
   }
 }
@@ -118,14 +116,12 @@ function renderRow(sectionId, rowId) {
       <div class="field">
         <label>Метрика</label>
         <div class="combo">
-          <!-- ✅ type="text" to match input styling -->
           <input type="text"
                  data-role="metric-input"
                  data-section="${escapeHtml(sectionId)}"
                  data-row="${escapeHtml(rowId)}"
                  placeholder="Выберите метрику или начните вводить..." />
           <div class="chev" aria-hidden="true">⌄</div>
-
           <div class="menu" data-role="menu" data-section="${escapeHtml(sectionId)}" data-row="${escapeHtml(rowId)}"></div>
         </div>
       </div>
@@ -155,9 +151,7 @@ function renderRow(sectionId, rowId) {
 
 function addRow(sectionId) {
   const rowId = uid();
-
-  // ✅ no preselected metric
-  state.rowsBySection[sectionId].push({ rowId, metricId: null, value: "" });
+  state.rowsBySection[sectionId].push({ rowId, metricId: null, value: "" }); // ✅ no preselect
 
   const rowsWrap = document.querySelector(`[data-role="rows"][data-section="${sectionId}"]`);
   rowsWrap.insertAdjacentHTML("beforeend", renderRow(sectionId, rowId));
@@ -168,14 +162,13 @@ function addRow(sectionId) {
 
 function removeRow(sectionId, rowId) {
   const rows = state.rowsBySection[sectionId];
-  if (rows.length <= 1) return; // keep at least one
+  if (rows.length <= 1) return;
 
   state.rowsBySection[sectionId] = rows.filter((r) => r.rowId !== rowId);
   document.querySelector(`[data-row="${rowId}"][data-section="${sectionId}"]`)?.remove();
 
-  // close menu if it was open for this row
   if (state.openMenu && state.openMenu.sectionId === sectionId && state.openMenu.rowId === rowId) {
-    state.openMenu = null;
+    closeMenu();
   }
 
   updateSectionPill(sectionId);
@@ -194,7 +187,7 @@ function syncRowUI(sectionId, rowId) {
   const unit = rowEl.querySelector(`[data-role="unit"]`);
   const valueInput = rowEl.querySelector(`[data-role="value-input"]`);
 
-  metricInput.value = metric?.name ?? ""; // empty if none selected
+  metricInput.value = metric?.name ?? "";
   guard.textContent = metric?.display ?? "—";
   unit.textContent = metric?.unit ?? "";
   valueInput.value = r.value ?? "";
@@ -209,9 +202,7 @@ function updateRowPill(sectionId, rowId) {
   const metric = getMetric(sectionId, r.metricId);
   const st = computeStatus(metric, parseNumber(r.value));
 
-  const pill = document.querySelector(
-    `[data-role="row-pill"][data-section="${sectionId}"][data-row="${rowId}"]`
-  );
+  const pill = document.querySelector(`[data-role="row-pill"][data-section="${sectionId}"][data-row="${rowId}"]`);
   if (!pill) return;
 
   pill.className = `mini ${st.code}`;
@@ -221,6 +212,7 @@ function updateRowPill(sectionId, rowId) {
 
 function updateSectionPill(sectionId) {
   const st = aggregateSectionStatus(sectionId);
+
   const pill = document.querySelector(`[data-role="section-pill"][data-section="${sectionId}"]`);
   if (!pill) return;
 
@@ -229,17 +221,24 @@ function updateSectionPill(sectionId) {
   pill.querySelector(".t").textContent = st.text;
 }
 
-/* ---------- Dropdown menu ---------- */
+/* ---------- Dropdown (absolute overlay) ---------- */
 
 function openMenu(sectionId, rowId) {
-  // close existing
   closeMenu();
 
   state.openMenu = { sectionId, rowId };
 
   const menu = document.querySelector(`[data-role="menu"][data-section="${sectionId}"][data-row="${rowId}"]`);
-  menu?.classList.add("open");
+  if (!menu) return;
 
+  // clear any inline leftovers from old experiments
+  menu.style.position = "";
+  menu.style.top = "";
+  menu.style.left = "";
+  menu.style.width = "";
+  menu.style.right = "";
+
+  menu.classList.add("open");
   renderMenu(sectionId, rowId);
 }
 
@@ -248,7 +247,15 @@ function closeMenu() {
 
   const { sectionId, rowId } = state.openMenu;
   const menu = document.querySelector(`[data-role="menu"][data-section="${sectionId}"][data-row="${rowId}"]`);
-  menu?.classList.remove("open");
+
+  if (menu) {
+    menu.classList.remove("open");
+    menu.style.position = "";
+    menu.style.top = "";
+    menu.style.left = "";
+    menu.style.width = "";
+    menu.style.right = "";
+  }
 
   state.openMenu = null;
 }
@@ -260,12 +267,13 @@ function renderMenu(sectionId, rowId) {
 
   const inputEl = rowEl.querySelector(`[data-role="metric-input"]`);
   const menuEl = rowEl.querySelector(`[data-role="menu"]`);
+
   const r = findRow(sectionId, rowId);
   const selected = getMetric(sectionId, r?.metricId);
 
   let q = (inputEl?.value || "").toLowerCase().trim();
 
-  // ✅ if input equals selected metric name, treat as no query (show all)
+  // if input equals selected name, it's not a "search" -> show all
   const selectedName = (selected?.name || "").toLowerCase().trim();
   if (q === selectedName) q = "";
 
@@ -298,11 +306,8 @@ function pickMetric(sectionId, rowId, metricId) {
   if (!r) return;
 
   r.metricId = metricId;
-
-  // keep typed value? (we keep it)
   syncRowUI(sectionId, rowId);
   updateSectionPill(sectionId);
-
   closeMenu();
 }
 
@@ -333,7 +338,6 @@ document.addEventListener("click", (e) => {
     return;
   }
 
-  // click outside dropdown closes it
   if (!e.target.closest(".combo")) closeMenu();
 });
 
@@ -352,7 +356,6 @@ document.addEventListener("input", (e) => {
 
   const metricInput = e.target.closest(`[data-role="metric-input"]`);
   if (metricInput) {
-    // live filtering: keep menu open and render list
     const { section, row } = metricInput.dataset;
     openMenu(section, row);
     return;
