@@ -74,9 +74,9 @@ function renderSection(sec){
 function addRow(sectionId){
   const sec = SECTIONS.find(s=>s.id===sectionId);
   const rowId = uid();
-  const metricId = sec.metrics[0]?.id ?? null;
+  const metricId = null; // ✅ ничего не выбрано по умолчанию
 
-  state.rowsBySection[sectionId].push({ rowId, metricId, value:"" });
+state.rowsBySection[sectionId].push({ rowId, metricId, value:"" });
 
   const rowsWrap = document.querySelector(`[data-role="rows"][data-section="${sectionId}"]`);
   rowsWrap.insertAdjacentHTML("beforeend", renderRow(sectionId, rowId));
@@ -98,7 +98,7 @@ function renderRow(sectionId, rowId){
       <div class="field">
         <label>Метрика</label>
         <div class="combo">
-          <input data-role="metric-input" data-section="${sectionId}" data-row="${rowId}" placeholder="Поиск..." />
+          <input type="text" data-role="metric-input" data-section="${sectionId}" data-row="${rowId}" placeholder="Поиск..." />
           <div class="chev">⌄</div>
           <div class="menu" data-role="menu" data-section="${sectionId}" data-row="${rowId}"></div>
         </div>
@@ -179,12 +179,9 @@ function renderMenu(sectionId, rowId){
   const r = findRow(sectionId, rowId);
   const selected = getMetric(sectionId, r.metricId);
 
-  // query из инпута
   let q = (inputEl.value || "").toLowerCase().trim();
-
-  // ✅ если в инпуте просто "название выбранной метрики", значит это не поиск
   const selectedName = (selected?.name || "").toLowerCase().trim();
-  if (q === selectedName) q = "";
+  if (q === selectedName) q = ""; // если просто выбранное имя — не считаем это поиском
 
   const list = !q
     ? sec.metrics
