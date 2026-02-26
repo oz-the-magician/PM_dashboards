@@ -174,15 +174,36 @@ function closeMenu(){
 function renderMenu(sectionId, rowId){
   const sec = SECTIONS.find(s=>s.id===sectionId);
   const rowEl = document.querySelector(`[data-row="${rowId}"][data-section="${sectionId}"]`);
-  const q = rowEl.querySelector(`[data-role="metric-input"]`).value.toLowerCase().trim();
-  const list = !q ? sec.metrics : sec.metrics.filter(m => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q));
-  const menu = rowEl.querySelector(`[data-role="menu"]`);
-  menu.innerHTML = list.map(m => `
-    <div class="opt" data-action="pick-metric" data-section="${sectionId}" data-row="${rowId}" data-metric="${m.id}">
-      <div>${m.name}</div><div class="meta">${m.display}</div>
-    </div>`).join("") || `<div class="empty">Ничего не найдено</div>`;
-}
+  const inputEl = rowEl.querySelector(`[data-role="metric-input"]`);
 
+  const r = findRow(sectionId, rowId);
+  const selected = getMetric(sectionId, r.metricId);
+
+  // query из инпута
+  let q = (inputEl.value || "").toLowerCase().trim();
+
+  // ✅ если в инпуте просто "название выбранной метрики", значит это не поиск
+  const selectedName = (selected?.name || "").toLowerCase().trim();
+  if (q === selectedName) q = "";
+
+  const list = !q
+    ? sec.metrics
+    : sec.metrics.filter(m => {
+        const hay = `${m.name} ${m.id} ${m.unit || ""}`.toLowerCase();
+        return hay.includes(q);
+      });
+
+  const menu = rowEl.querySelector(`[data-role="menu"]`);
+  menu.innerHTML = list.length
+    ? list.map(m => `
+        <div class="opt" data-action="pick-metric"
+             data-section="${sectionId}" data-row="${rowId}" data-metric="${m.id}">
+          <div>${m.name}</div>
+          <div class="meta">${m.display}</div>
+        </div>
+      `).join("")
+    : `<div class="empty">Ничего не найдено</div>`;
+}
 /* ---------- один набор обработчиков ---------- */
 document.addEventListener("click", (e) => {
   const btnAdd = e.target.closest(`[data-action="add-row"]`);

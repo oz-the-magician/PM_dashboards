@@ -272,19 +272,24 @@ input[type="number"]{ -moz-appearance: textfield; }
 
 .chev{
   position:absolute;
-  right:10px;
+  right:12px;
   top:50%;
   transform: translateY(-50%);
   width:26px;
   height:26px;
-  border-radius:10px;
+
+  /* ✅ убрать квадратик */
+  background: transparent;
+  border: none;
+
   display:grid;
   place-items:center;
   color:var(--muted);
   pointer-events:none;
-  background: rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.06);
-  font-size:12px;
+
+  /* ✅ сделать стрелку крупнее */
+  font-size:22px;
+  line-height:1;
 }
 
 /* menu overlay */
