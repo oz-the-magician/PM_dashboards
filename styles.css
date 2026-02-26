@@ -1,9 +1,8 @@
-/* styles.css — AI Product Safety Dashboard
-   Cosmetic + layout fixes:
-   1) Dropdown opaque + always on top
-   2) Metric input styled like value input (fix "white" field)
-   3) Chevron centered, no square background, larger
-   4) Metric column wider; value column ~2x narrower
+/* styles.css — FIXED
+   - Dropdown is fully opaque + overlays everything
+   - Metric input styled identical to number input (no "white" default)
+   - Chevron centered, no square, larger
+   - Grid: metric wider, value ~2x narrower
 */
 
 :root{
@@ -59,6 +58,8 @@ h1{
 }
 
 .stack{
+  position: relative;
+  z-index: 0;
   display:flex;
   flex-direction:column;
   gap:14px;
@@ -67,14 +68,14 @@ h1{
 
 /* Section card */
 .card{
-  background: #0f1722;
+  background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
   border: 1px solid var(--line);
   border-radius: 16px;
   box-shadow: var(--shadow);
 
-  overflow: visible;      /* important for dropdown overlays */
+  overflow: visible;
   position: relative;
-  z-index: 1;
+  z-index: 0;
 }
 
 .cardHead{
@@ -113,7 +114,7 @@ h1{
   flex-direction:column;
   gap:12px;
   position: relative;
-  z-index: 1;
+  z-index: 0;
 }
 
 /* Buttons */
@@ -153,7 +154,7 @@ h1{
 /* Row card */
 .rowCard{
   border:1px solid rgba(255,255,255,.06);
-  background: #0f1722;
+  background: rgba(0,0,0,.12);
   border-radius:14px;
   padding:12px;
   display:flex;
@@ -161,8 +162,10 @@ h1{
   gap:10px;
 
   position: relative;
-  z-index: 2;
-  isolation: isolate; /* helps keep dropdown above neighboring stacking contexts */
+  z-index: 1;
+
+  /* IMPORTANT: do NOT isolate, it can break overlay stacking */
+  isolation: auto;
 }
 
 .rowTop{
@@ -203,7 +206,7 @@ label{
   margin:0 0 6px;
 }
 
-/* ✅ Grid: metric wider, value ~2x narrower */
+/* Grid: metric wider, value ~2x narrower */
 .grid{
   display:grid;
   grid-template-columns: 1.8fr .45fr .85fr;
@@ -264,7 +267,7 @@ input[type="number"]{ -moz-appearance: textfield; }
   padding-right:56px; /* space for chevron */
 }
 
-/* ✅ Chevron: centered, larger, no square */
+/* Chevron: centered, larger, no square */
 .chev{
   position:absolute;
   right:12px;
@@ -286,23 +289,31 @@ input[type="number"]{ -moz-appearance: textfield; }
   line-height:1;
 }
 
-/* ✅ Menu: opaque and always on top */
+/* Menu: fully opaque + extreme z-index */
 .menu{
   position:absolute;
   top:calc(100% + 8px);
   left:0;
   right:0;
 
-  background: #0c1320;    /* no transparency */
+  background-color: #0c1320;
+  background-image: none;
+  opacity: 1;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  mix-blend-mode: normal;
+
   border:1px solid var(--line);
   border-radius: 14px;
-  box-shadow: 0 18px 50px rgba(0,0,0,.65);
+  box-shadow: 0 18px 50px rgba(0,0,0,.75);
 
   overflow:hidden;
   max-height: 360px;
+  overflow-y: auto;
 
   display:none;
-  z-index: 999999;
+
+  z-index: 2147483647;
 }
 
 .menu.open{ display:block; }
@@ -314,10 +325,13 @@ input[type="number"]{ -moz-appearance: textfield; }
   gap:10px;
   cursor:pointer;
   border-bottom:1px solid rgba(255,255,255,.04);
+
+  /* keep options opaque too */
+  background-color: #0c1320;
 }
 
 .opt:last-child{ border-bottom:none; }
-.opt:hover{ background: rgba(110,168,255,.10); }
+.opt:hover{ background-color: rgba(110,168,255,.14); }
 
 .opt .meta{
   font-size:12px;
@@ -329,4 +343,5 @@ input[type="number"]{ -moz-appearance: textfield; }
   padding:14px 10px;
   color:var(--muted);
   font-size:13px;
+  background-color: #0c1320;
 }
