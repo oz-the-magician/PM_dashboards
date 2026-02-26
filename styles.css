@@ -240,22 +240,31 @@ input[type="number"]{ -moz-appearance: textfield; }
 .chev{
   position:absolute;
   right:12px;
-  top:0;
-  height:42px;          /* matches input height */
+  top:50%;
+  transform: translateY(-50%);
+
   width:42px;
+  height:42px;
 
-  display:flex;
-  align-items:center;
-  justify-content:center;
-
+  display:block;
   background: transparent;
   border: none;
 
-  color:var(--muted);
   pointer-events:none;
+}
 
-  font-size:22px;
-  line-height:1;
+.chev::before{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform: translate(-50%, -35%); /* -35% выглядит визуально идеально */
+  width:0;
+  height:0;
+
+  border-left:6px solid transparent;
+  border-right:6px solid transparent;
+  border-top:8px solid var(--muted);
 }
 
 /* ---------------- PORTAL MENU ---------------- */
