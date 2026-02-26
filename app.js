@@ -1,7 +1,8 @@
-/* app.js (ES module) — STABLE OVERLAY VERSION
+/* app.js — DROPDOWN PORTAL (SOLVES LAYERING + "TRANSPARENCY")
+   - Menu is rendered into a single fixed "portal" attached to <body>
+   - Always overlays other cards (no stacking-context issues)
    - No preselected metric on load
-   - Dropdown is absolute (no fixed) + cleaned inline styles
-   - Event delegation only (fast)
+   - Event delegation only
 */
 
 import { SECTIONS } from "./data/metrics.js";
@@ -15,6 +16,15 @@ const state = {
 
 function uid() {
   return Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(2, 6);
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function getSection(sectionId) {
@@ -62,23 +72,105 @@ function aggregateSectionStatus(sectionId) {
   return worst;
 }
 
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+/* ---------------- Portal menu ---------------- */
+
+const portal = document.createElement("div");
+portal.className = "menuPortal";
+portal.setAttribute("aria-hidden", "true");
+document.body.appendChild(portal);
+
+function portalSetOpen(isOpen) {
+  portal.classList.toggle("open", isOpen);
+  portal.setAttribute("aria-hidden", String(!isOpen));
 }
 
-/* ---------- Render ---------- */
+function positionPortalToInput(sectionId, rowId) {
+  const input = document.querySelector(
+    `[data-role="metric-input"][data-section="${sectionId}"][data-row="${rowId}"]`
+  );
+  if (!input) return;
+
+  const rect = input.getBoundingClientRect();
+  const top = rect.bottom + 8;
+  const left = rect.left;
+  const width = rect.width;
+
+  portal.style.top = `${Math.round(top)}px`;
+  portal.style.left = `${Math.round(left)}px`;
+  portal.style.width = `${Math.round(width)}px`;
+}
+
+function closeMenu() {
+  state.openMenu = null;
+  portal.innerHTML = "";
+  portalSetOpen(false);
+}
+
+function renderPortalMenu(sectionId, rowId) {
+  const sec = getSection(sectionId);
+  const r = findRow(sectionId, rowId);
+  const selected = getMetric(sectionId, r?.metricId);
+
+  const inputEl = document.querySelector(
+    `[data-role="metric-input"][data-section="${sectionId}"][data-row="${rowId}"]`
+  );
+
+  let q = (inputEl?.value || "").toLowerCase().trim();
+  const selectedName = (selected?.name || "").toLowerCase().trim();
+
+  // if input equals selected metric name, treat as empty query -> show all
+  if (q === selectedName) q = "";
+
+  const list = !q
+    ? sec.metrics
+    : sec.metrics.filter((m) => {
+        const hay = `${m.name} ${m.id} ${m.unit || ""}`.toLowerCase();
+        return hay.includes(q);
+      });
+
+  portal.innerHTML = list.length
+    ? list
+        .map(
+          (m) => `
+      <div class="opt"
+           data-action="pick-metric"
+           data-section="${escapeHtml(sectionId)}"
+           data-row="${escapeHtml(rowId)}"
+           data-metric="${escapeHtml(m.id)}">
+        <div class="name">${escapeHtml(m.name)}</div>
+        <div class="meta">${escapeHtml(m.display)}</div>
+      </div>`
+        )
+        .join("")
+    : `<div class="empty">Ничего не найдено</div>`;
+}
+
+function openMenu(sectionId, rowId) {
+  state.openMenu = { sectionId, rowId };
+  positionPortalToInput(sectionId, rowId);
+  renderPortalMenu(sectionId, rowId);
+  portalSetOpen(true);
+}
+
+/* keep portal aligned on scroll/resize */
+window.addEventListener("scroll", () => {
+  if (!state.openMenu) return;
+  positionPortalToInput(state.openMenu.sectionId, state.openMenu.rowId);
+}, true);
+
+window.addEventListener("resize", () => {
+  if (!state.openMenu) return;
+  positionPortalToInput(state.openMenu.sectionId, state.openMenu.rowId);
+});
+
+/* ---------------- Render ---------------- */
 
 function renderApp() {
   const stack = $("#stack");
   stack.innerHTML = SECTIONS.map(renderSection).join("");
 
   for (const s of SECTIONS) {
-    addRow(s.id); // 1 empty row per level
+    addRow(s.id);
     updateSectionPill(s.id);
   }
 }
@@ -122,7 +214,6 @@ function renderRow(sectionId, rowId) {
                  data-row="${escapeHtml(rowId)}"
                  placeholder="Выберите метрику или начните вводить..." />
           <div class="chev" aria-hidden="true">⌄</div>
-          <div class="menu" data-role="menu" data-section="${escapeHtml(sectionId)}" data-row="${escapeHtml(rowId)}"></div>
         </div>
       </div>
 
@@ -147,11 +238,11 @@ function renderRow(sectionId, rowId) {
   </div>`;
 }
 
-/* ---------- Mutations ---------- */
+/* ---------------- Mutations ---------------- */
 
 function addRow(sectionId) {
   const rowId = uid();
-  state.rowsBySection[sectionId].push({ rowId, metricId: null, value: "" }); // ✅ no preselect
+  state.rowsBySection[sectionId].push({ rowId, metricId: null, value: "" });
 
   const rowsWrap = document.querySelector(`[data-role="rows"][data-section="${sectionId}"]`);
   rowsWrap.insertAdjacentHTML("beforeend", renderRow(sectionId, rowId));
@@ -179,6 +270,7 @@ function syncRowUI(sectionId, rowId) {
   if (!r) return;
 
   const metric = getMetric(sectionId, r.metricId);
+
   const rowEl = document.querySelector(`[data-row="${rowId}"][data-section="${sectionId}"]`);
   if (!rowEl) return;
 
@@ -202,7 +294,9 @@ function updateRowPill(sectionId, rowId) {
   const metric = getMetric(sectionId, r.metricId);
   const st = computeStatus(metric, parseNumber(r.value));
 
-  const pill = document.querySelector(`[data-role="row-pill"][data-section="${sectionId}"][data-row="${rowId}"]`);
+  const pill = document.querySelector(
+    `[data-role="row-pill"][data-section="${sectionId}"][data-row="${rowId}"]`
+  );
   if (!pill) return;
 
   pill.className = `mini ${st.code}`;
@@ -212,93 +306,12 @@ function updateRowPill(sectionId, rowId) {
 
 function updateSectionPill(sectionId) {
   const st = aggregateSectionStatus(sectionId);
-
   const pill = document.querySelector(`[data-role="section-pill"][data-section="${sectionId}"]`);
   if (!pill) return;
 
   pill.className = `pill ${st.code}`;
   pill.querySelector(".e").textContent = st.emoji;
   pill.querySelector(".t").textContent = st.text;
-}
-
-/* ---------- Dropdown (absolute overlay) ---------- */
-
-function openMenu(sectionId, rowId) {
-  closeMenu();
-
-  state.openMenu = { sectionId, rowId };
-
-  const menu = document.querySelector(`[data-role="menu"][data-section="${sectionId}"][data-row="${rowId}"]`);
-  if (!menu) return;
-
-  // clear any inline leftovers from old experiments
-  menu.style.position = "";
-  menu.style.top = "";
-  menu.style.left = "";
-  menu.style.width = "";
-  menu.style.right = "";
-
-  menu.classList.add("open");
-  renderMenu(sectionId, rowId);
-}
-
-function closeMenu() {
-  if (!state.openMenu) return;
-
-  const { sectionId, rowId } = state.openMenu;
-  const menu = document.querySelector(`[data-role="menu"][data-section="${sectionId}"][data-row="${rowId}"]`);
-
-  if (menu) {
-    menu.classList.remove("open");
-    menu.style.position = "";
-    menu.style.top = "";
-    menu.style.left = "";
-    menu.style.width = "";
-    menu.style.right = "";
-  }
-
-  state.openMenu = null;
-}
-
-function renderMenu(sectionId, rowId) {
-  const sec = getSection(sectionId);
-  const rowEl = document.querySelector(`[data-row="${rowId}"][data-section="${sectionId}"]`);
-  if (!sec || !rowEl) return;
-
-  const inputEl = rowEl.querySelector(`[data-role="metric-input"]`);
-  const menuEl = rowEl.querySelector(`[data-role="menu"]`);
-
-  const r = findRow(sectionId, rowId);
-  const selected = getMetric(sectionId, r?.metricId);
-
-  let q = (inputEl?.value || "").toLowerCase().trim();
-
-  // if input equals selected name, it's not a "search" -> show all
-  const selectedName = (selected?.name || "").toLowerCase().trim();
-  if (q === selectedName) q = "";
-
-  const list = !q
-    ? sec.metrics
-    : sec.metrics.filter((m) => {
-        const hay = `${m.name} ${m.id} ${m.unit || ""}`.toLowerCase();
-        return hay.includes(q);
-      });
-
-  menuEl.innerHTML = list.length
-    ? list
-        .map(
-          (m) => `
-      <div class="opt"
-           data-action="pick-metric"
-           data-section="${escapeHtml(sectionId)}"
-           data-row="${escapeHtml(rowId)}"
-           data-metric="${escapeHtml(m.id)}">
-        <div>${escapeHtml(m.name)}</div>
-        <div class="meta">${escapeHtml(m.display)}</div>
-      </div>`
-        )
-        .join("")
-    : `<div class="empty">Ничего не найдено</div>`;
 }
 
 function pickMetric(sectionId, rowId, metricId) {
@@ -311,7 +324,7 @@ function pickMetric(sectionId, rowId, metricId) {
   closeMenu();
 }
 
-/* ---------- Event delegation ---------- */
+/* ---------------- Event delegation ---------------- */
 
 document.addEventListener("click", (e) => {
   const addBtn = e.target.closest(`[data-action="add-row"]`);
@@ -338,7 +351,10 @@ document.addEventListener("click", (e) => {
     return;
   }
 
-  if (!e.target.closest(".combo")) closeMenu();
+  // if click is NOT inside input combo and NOT inside portal => close
+  if (!e.target.closest(".combo") && !e.target.closest(".menuPortal")) {
+    closeMenu();
+  }
 });
 
 document.addEventListener("input", (e) => {
@@ -357,6 +373,7 @@ document.addEventListener("input", (e) => {
   const metricInput = e.target.closest(`[data-role="metric-input"]`);
   if (metricInput) {
     const { section, row } = metricInput.dataset;
+    // keep menu open and filter live
     openMenu(section, row);
     return;
   }
@@ -366,5 +383,5 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeMenu();
 });
 
-/* ---------- Boot ---------- */
+/* ---------------- Boot ---------------- */
 renderApp();

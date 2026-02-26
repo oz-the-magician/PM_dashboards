@@ -1,11 +1,4 @@
-/* styles.css — STABLE OVERLAY VERSION
-   Fixes:
-   - dropdown NOT transparent
-   - dropdown always overlays other level cards
-   - remove isolation/backdrop/mix-blend conflicts
-   - metric input styled like value input
-   - value input ~2x narrower (grid)
-*/
+/* styles.css — PORTAL MENU + CHEVRON ALIGN FIX */
 
 :root{
   --bg:#0b0f14;
@@ -56,24 +49,19 @@ h1{
 }
 
 .stack{
-  position: relative;
-  z-index: 0;
   display:flex;
   flex-direction:column;
   gap:14px;
   margin-top:14px;
 }
 
-/* Level card */
+/* Cards */
 .card{
   background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
   border: 1px solid var(--line);
   border-radius: 16px;
   box-shadow: var(--shadow);
-
   overflow: visible;
-  position: relative;
-  z-index: 0; /* important: no stacking wars between cards */
 }
 
 .cardHead{
@@ -111,8 +99,6 @@ h1{
   display:flex;
   flex-direction:column;
   gap:12px;
-  position: relative;
-  z-index: 0;
 }
 
 /* Buttons */
@@ -169,10 +155,6 @@ h1{
   display:flex;
   flex-direction:column;
   gap:10px;
-
-  position: relative;
-  z-index: 10;     /* key: above the card */
-  isolation: auto; /* key: do NOT isolate */
 }
 
 .rowTop{
@@ -193,7 +175,7 @@ label{
   margin:0 0 6px;
 }
 
-/* Layout: metric wider, value ~2x narrower */
+/* Layout: value input ~2x narrower */
 .grid{
   display:grid;
   grid-template-columns: 1.8fr .45fr .85fr;
@@ -245,7 +227,7 @@ input[type="number"]{ -moz-appearance: textfield; }
   white-space:nowrap;
 }
 
-/* Dropdown */
+/* Combo + chevron alignment fix */
 .combo{
   position:relative;
 }
@@ -254,19 +236,20 @@ input[type="number"]{ -moz-appearance: textfield; }
   padding-right:56px;
 }
 
+/* ✅ fixed vertical alignment: full height of input, centered via flex */
 .chev{
   position:absolute;
   right:12px;
-  top:50%;
-  transform: translateY(-50%);
-  width:40px;
-  height:40px;
+  top:0;
+  height:42px;          /* matches input height */
+  width:42px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
 
   background: transparent;
   border: none;
-
-  display:grid;
-  place-items:center;
 
   color:var(--muted);
   pointer-events:none;
@@ -275,15 +258,14 @@ input[type="number"]{ -moz-appearance: textfield; }
   line-height:1;
 }
 
-/* Menu: fully opaque + above everything */
-.menu{
-  position:absolute;
-  top:calc(100% + 8px);
-  left:0;
-  right:0;
+/* ---------------- PORTAL MENU ---------------- */
 
+.menuPortal{
+  position:fixed;
+  display:none;
+
+  /* solid, non-transparent */
   background:#0c1320;
-  opacity:1;
 
   border:1px solid var(--line);
   border-radius:14px;
@@ -292,14 +274,14 @@ input[type="number"]{ -moz-appearance: textfield; }
   max-height:360px;
   overflow-y:auto;
 
-  display:none;
-
-  z-index: 1000; /* inside rowCard z-index 10 -> this is enough */
+  z-index: 2147483647;
 }
 
-.menu.open{ display:block; }
+.menuPortal.open{
+  display:block;
+}
 
-.opt{
+.menuPortal .opt{
   padding:10px 10px;
   display:flex;
   justify-content:space-between;
@@ -309,16 +291,16 @@ input[type="number"]{ -moz-appearance: textfield; }
   background:#0c1320;
 }
 
-.opt:last-child{ border-bottom:none; }
-.opt:hover{ background: rgba(110,168,255,.14); }
+.menuPortal .opt:last-child{ border-bottom:none; }
+.menuPortal .opt:hover{ background: rgba(110,168,255,.14); }
 
-.opt .meta{
+.menuPortal .meta{
   font-size:12px;
   color:var(--muted);
   white-space:nowrap;
 }
 
-.empty{
+.menuPortal .empty{
   padding:14px 10px;
   color:var(--muted);
   font-size:13px;
