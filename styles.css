@@ -253,7 +253,19 @@ input[type="number"]{ -moz-appearance: textfield; }
   pointer-events:none;
 }
 
+.chev::before{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform: translate(-50%, -35%); /* -35% выглядит визуально идеально */
+  width:0;
+  height:0;
 
+  border-left:6px solid transparent;
+  border-right:6px solid transparent;
+  border-top:8px solid var(--muted);
+}
 
 /* ---------------- PORTAL MENU ---------------- */
 
