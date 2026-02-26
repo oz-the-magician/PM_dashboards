@@ -213,7 +213,7 @@ function renderRow(sectionId, rowId) {
                  data-section="${escapeHtml(sectionId)}"
                  data-row="${escapeHtml(rowId)}"
                  placeholder="Выберите метрику или начните вводить..." />
-          <div class="chev" aria-hidden="true">⌄</div>
+          <div class="chev" aria-hidden="true"></div>
         </div>
       </div>
 
